@@ -1,0 +1,1722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>HYGS Groundwater Portal</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<style>#draw-bbox-btn.active{background:var(--b50);font-weight:500;}
+.bbox-panel{background:#fff;border:.5px solid var(--b200);border-radius:var(--rl);padding:.9rem 1rem;margin:0 0 0 0;flex-shrink:0;}
+.bbox-panel h3{font-size:13px;font-weight:500;color:var(--b800);margin-bottom:.4rem;display:flex;align-items:center;gap:.5rem;}
+.bbox-stat-row{display:flex;gap:.75rem;flex-wrap:wrap;margin-bottom:.6rem;}
+.bbox-statcard{background:var(--b50);border-radius:var(--r);padding:.4rem .75rem;flex:1;min-width:90px;}
+.bbox-statcard .val{font-family:var(--mono);font-size:15px;font-weight:500;color:var(--b800);}
+.bbox-statcard .lbl{font-size:10px;color:var(--b600);margin-top:1px;}
+</style>
+<style>
+:root{
+  --b50:#E6F1FB;--b100:#B5D4F4;--b200:#85B7EB;--b400:#378ADD;
+  --b600:#185FA5;--b700:#12508f;--b800:#0C447C;--b900:#042C53;
+  --t50:#E1F5EE;--t200:#5DCAA5;--t400:#1D9E75;--t600:#0F6E56;
+  --a50:#FAEEDA;--a100:#FAC775;--a800:#633806;
+  --g50:#F1EFE8;--g100:#D3D1C7;--g200:#B4B2A9;
+  --g400:#888780;--g600:#5F5E5A;--g800:#444441;--g900:#2C2C2A;
+  --gr50:#EAF3DE;--gr800:#27500A;
+  --r50:#FCEBEB;--r200:#F09595;--r800:#791F1F;
+  --r:8px;--rl:12px;
+  --font:'IBM Plex Sans',system-ui,sans-serif;
+  --mono:'IBM Plex Mono','Courier New',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font);font-size:14px;background:#f4f3ef;color:var(--g900);min-height:100vh;}
+
+/* NAV */
+nav{position:sticky;top:0;z-index:1000;background:var(--b900);display:flex;align-items:center;padding:0 1.5rem;height:52px;}
+.brand{font-family:var(--mono);font-size:13px;font-weight:500;color:var(--b100);letter-spacing:.04em;margin-right:2rem;white-space:nowrap;}
+.brand span{color:var(--t200);}
+.navlinks{display:flex;flex:1;}
+.navbtn{font-size:13px;color:var(--b200);padding:0 1rem;height:52px;display:flex;align-items:center;cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;transition:color .15s,border-color .15s;}
+.navbtn:hover,.navbtn.on{color:#fff;border-bottom-color:var(--t200);}
+.data-pill{margin-left:auto;font-size:11px;font-family:var(--mono);padding:.2rem .6rem;border-radius:4px;background:var(--t600);color:#fff;}
+
+/* QUICK BAR */
+.ucbar{background:var(--b800);padding:.55rem 1.5rem;display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;}
+.uclabel{font-size:11px;color:var(--b200);text-transform:uppercase;letter-spacing:.06em;margin-right:.25rem;}
+.ucbtn{background:transparent;border:1px solid var(--b400);color:var(--b100);font-size:12px;font-family:var(--font);padding:.28rem .65rem;border-radius:4px;cursor:pointer;transition:background .15s;}
+.ucbtn:hover{background:var(--b600);color:#fff;}
+
+/* LAYOUT */
+.layout{display:flex;height:calc(100vh - 88px);}
+
+/* SIDEBAR */
+.sidebar{width:230px;min-width:210px;background:#fff;border-right:.5px solid var(--g100);padding:1rem 0;overflow-y:auto;flex-shrink:0;}
+.stitle{font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.07em;color:var(--g400);padding:0 1rem .4rem;}
+.sitem{display:flex;align-items:center;gap:8px;padding:.4rem 1rem;font-size:13px;color:var(--g800);cursor:pointer;border:none;background:none;width:100%;text-align:left;border-left:3px solid transparent;transition:background .12s;}
+.sitem:hover{background:var(--g50);}
+.sitem.on{background:var(--b50);border-left-color:var(--b400);color:var(--b800);font-weight:500;}
+.ssec{margin-bottom:1.1rem;}
+.fgroup{padding:0 1rem;margin-bottom:.8rem;}
+.flabel{font-size:11px;color:var(--g600);margin-bottom:.28rem;display:block;}
+.finput{width:100%;font-size:12px;font-family:var(--font);border:.5px solid var(--g200);border-radius:var(--r);padding:.3rem .5rem;background:var(--g50);color:var(--g900);}
+select.finput{cursor:pointer;}
+.frow{display:flex;gap:.35rem;}
+.frow .finput{flex:1;}
+.fchk{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--g800);cursor:pointer;padding:.15rem 0;}
+.fapply{width:100%;padding:.38rem;font-family:var(--font);font-size:12px;background:var(--b800);color:#fff;border:none;border-radius:var(--r);cursor:pointer;margin-top:.2rem;}
+.fapply:hover{background:var(--b700);}
+.freset{width:100%;padding:.3rem;font-family:var(--font);font-size:11px;background:transparent;color:var(--g600);border:.5px solid var(--g200);border-radius:var(--r);cursor:pointer;margin-top:.35rem;}
+
+/* MAIN */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.panel{display:none;flex:1;flex-direction:column;overflow:hidden;}
+.panel.on{display:flex;}
+#panel-browse,#panel-export,#panel-coverage{overflow-y:auto;padding:1rem 1.5rem;}
+
+/* MAP */
+.map-statbar{background:#fff;border-bottom:.5px solid var(--g100);padding:.4rem 1rem;display:flex;align-items:center;gap:1.5rem;font-size:12px;color:var(--g600);flex-shrink:0;flex-wrap:wrap;}
+.map-statbar strong{color:var(--b800);font-family:var(--mono);}
+.map-hint{margin-left:auto;font-size:11px;color:var(--g400);}
+#map-container{flex:1;position:relative;min-height:0;}
+#map{width:100%;height:100%;}
+
+/* MAP LEGEND */
+.map-legend{position:absolute;bottom:24px;left:12px;z-index:500;background:#fff;border:.5px solid var(--g100);border-radius:var(--r);padding:.5rem .75rem;font-size:11px;color:var(--g600);}
+.legend-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:middle;}
+
+/* TIME SERIES DRAWER */
+#ts-drawer{background:#fff;border-top:.5px solid var(--g100);flex-shrink:0;height:0;overflow:hidden;transition:height .25s ease;}
+#ts-drawer.open{height:340px;}
+.ts-inner{padding:.65rem 1rem;height:100%;display:flex;flex-direction:column;gap:.4rem;}
+.ts-header{display:flex;align-items:center;gap:.75rem;flex-shrink:0;}
+.ts-header h3{font-size:13px;font-weight:500;flex:1;font-family:var(--mono);}
+.ts-close{font-size:11px;font-family:var(--font);padding:.2rem .5rem;border:.5px solid var(--g200);border-radius:var(--r);cursor:pointer;background:var(--g50);}
+.drawer-tab{font-size:11px;font-family:var(--font);padding:.3rem .75rem;border:none;border-bottom:2px solid transparent;background:none;cursor:pointer;color:var(--g600);transition:color .12s,border-color .12s;}
+.drawer-tab:hover{color:var(--g900);}
+.drawer-tab.on{color:var(--b800);border-bottom-color:var(--b400);font-weight:500;}
+
+.ts-meta-row{display:flex;gap:1.25rem;flex-shrink:0;flex-wrap:wrap;}
+.ts-meta-item{font-size:11px;color:var(--g600);}
+.ts-meta-item strong{font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--g400);display:block;}
+
+/* TREND BADGE */
+.trend-badge{font-size:11px;font-family:var(--mono);padding:.15rem .45rem;border-radius:3px;flex-shrink:0;}
+.trend-up{background:#E6F1FB;color:#0C447C;}
+.trend-dn{background:#FCEBEB;color:#791F1F;}
+.trend-flat{background:var(--g50);color:var(--g600);}
+
+#ts-chart-wrap{flex:1;min-height:0;position:relative;}
+#ts-chart{width:100%;height:100%;}
+.ts-loading-msg{font-size:12px;color:var(--g400);padding:.5rem 0;}
+
+/* BROWSE TABLE */
+.statrow{display:flex;gap:.65rem;flex-wrap:wrap;margin-bottom:1rem;}
+.statcard{background:var(--b50);border-radius:var(--r);padding:.55rem .9rem;flex:1;min-width:100px;}
+.statval{font-family:var(--mono);font-size:18px;font-weight:500;color:var(--b800);}
+.statlbl{font-size:11px;color:var(--b600);margin-top:1px;}
+.twrap{background:#fff;border:.5px solid var(--g100);border-radius:var(--rl);overflow:hidden;margin-bottom:1rem;}
+.toolbar{display:flex;align-items:center;gap:.45rem;padding:.5rem .9rem;border-bottom:.5px solid var(--g100);background:var(--g50);flex-wrap:wrap;}
+.toolbar input{flex:1;min-width:140px;font-size:12px;font-family:var(--font);border:.5px solid var(--g200);border-radius:var(--r);padding:.27rem .5rem;background:#fff;}
+.ebtn{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-family:var(--font);background:var(--b50);color:var(--b800);border:.5px solid var(--b200);border-radius:var(--r);padding:.27rem .55rem;cursor:pointer;transition:background .12s;white-space:nowrap;}
+.ebtn:hover{background:var(--b100);}
+.tbl{width:100%;border-collapse:collapse;font-size:11px;}
+.tbl th{text-align:left;padding:.4rem .7rem;font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.05em;color:var(--g600);border-bottom:.5px solid var(--g100);background:var(--g50);white-space:nowrap;cursor:pointer;}
+.tbl th:hover{background:var(--b50);}
+.tbl td{padding:.38rem .7rem;border-bottom:.5px solid var(--g50);color:var(--g800);font-family:var(--mono);}
+.tbl tr:hover td{background:var(--b50);}
+.tbl tr:last-child td{border-bottom:none;}
+.tbl td.wellid{color:var(--b800);font-weight:500;cursor:pointer;}
+.tbl td.wellid:hover{text-decoration:underline;}
+.badge{display:inline-block;padding:1px 5px;border-radius:3px;font-size:10px;font-family:var(--font);}
+.bg{background:var(--gr50);color:var(--gr800);}
+.ba{background:var(--a50);color:var(--a800);}
+.bt{background:var(--b50);color:var(--b800);}
+.paginator{display:flex;align-items:center;gap:.5rem;padding:.45rem .9rem;font-size:12px;color:var(--g600);border-top:.5px solid var(--g100);}
+.pgbtn{font-size:11px;border:.5px solid var(--g200);border-radius:var(--r);padding:.18rem .45rem;cursor:pointer;background:#fff;}
+.pgbtn:disabled{opacity:.4;cursor:default;}
+
+/* EXPORT / COVERAGE */
+.sh{font-size:15px;font-weight:500;margin-bottom:.4rem;}
+.ss{font-size:13px;color:var(--g600);margin-bottom:.9rem;line-height:1.6;}
+.expgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.7rem;margin-bottom:1rem;}
+.expcard{background:#fff;border:.5px solid var(--g100);border-radius:var(--rl);padding:.9rem;}
+.expcard h3{font-size:13px;font-weight:500;margin-bottom:.5rem;}
+.region-item{padding:.3rem .65rem;font-size:12px;color:var(--g800);cursor:pointer;}
+.region-item:hover,.region-item.hover{background:var(--b50);color:var(--b800);}
+.region-item strong{color:var(--b600);}
+.exp-scope-btn{font-size:12px;font-family:var(--font);padding:.3rem .8rem;border:.5px solid var(--g200);border-radius:var(--r);cursor:pointer;color:var(--g600);background:#fff;transition:background .12s,border-color .12s,color .12s;user-select:none;}
+.exp-scope-btn:hover{background:var(--g50);}
+.exp-scope-btn.on{background:var(--b50);border-color:var(--b400);color:var(--b800);font-weight:500;}
+
+.expcard p{font-size:12px;color:var(--g600);line-height:1.5;margin-bottom:.5rem;}
+.exp-sub{font-size:11px;color:var(--g400);margin-bottom:.4rem;}
+.covbox{background:var(--a50);border:1px solid var(--a100);border-radius:var(--rl);padding:.9rem 1.1rem;margin-bottom:1rem;}
+.covbox h3{font-size:13px;font-weight:500;color:var(--a800);margin-bottom:.6rem;}
+.covgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.6rem;}
+.covitem{font-size:12px;color:var(--a800);line-height:1.5;}
+.covitem strong{display:block;font-weight:500;margin-bottom:.2rem;font-size:12px;}
+.citebox{background:#fff;border:.5px solid var(--g100);border-radius:var(--rl);padding:.9rem 1.1rem;margin-bottom:1rem;}
+.citebox h3{font-size:13px;font-weight:500;margin-bottom:.4rem;}
+.codemono{font-family:var(--mono);font-size:11px;color:var(--g600);background:var(--g50);border-radius:var(--r);padding:.45rem .7rem;line-height:1.7;white-space:pre-wrap;}
+.errbox{background:var(--r50);border:.5px solid var(--r200);border-radius:var(--r);padding:.65rem .9rem;font-size:12px;color:var(--r800);margin-bottom:.9rem;}
+.leaflet-popup-content-wrapper{border-radius:var(--r);font-family:var(--font);font-size:12px;}
+.leaflet-popup-content{margin:.5rem .75rem;}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="brand">HYGS <span>// GW Portal</span></div>
+  <div class="navlinks">
+    <button class="navbtn on" onclick="showPanel('map')">Map</button>
+    <button class="navbtn" onclick="showPanel('browse')">Browse</button>
+    <button class="navbtn" onclick="showPanel('export')">Export</button>
+    <button class="navbtn" onclick="showPanel('coverage')">Coverage</button>
+  </div>
+  <div class="data-pill" id="data-pill">loading...</div>
+</nav>
+
+<div class="ucbar">
+  <span class="uclabel">Quick:</span>
+  <button class="ucbtn" onclick="quickFilter('dense')">&gt;300 months</button>
+  <button class="ucbtn" onclick="quickFilter('gwh')">GWH flag</button>
+  <button class="ucbtn" onclick="quickFilter('litho')">Has lithology</button>
+  <button class="ucbtn" onclick="quickFilter('hasts')">Has time series</button>
+  <button class="ucbtn" onclick="quickFilter('reset')">Reset</button>
+</div>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="ssec">
+      <div class="stitle">Filters</div>
+      <div class="fgroup">
+        <label class="flabel">Country</label>
+        <select class="finput" id="f-country" onchange="onCountryChange()">
+          <option value="">All countries</option>
+        </select>
+      </div>
+      <div class="fgroup">
+        <div class="fgroup">
+          <label class="flabel">Region / state</label>
+          <div style="position:relative;">
+            <input class="finput" type="text" id="f-state" placeholder="e.g. Queensland, Réunion..."
+              autocomplete="off" oninput="onRegionInput()" onkeydown="onRegionKey(event)" onfocus="onRegionInput()"/>
+            <div id="region-dropdown" style="
+              display:none;position:absolute;top:100%;left:0;right:0;z-index:2000;
+              background:#fff;border:.5px solid var(--g200);border-radius:var(--r);
+              box-shadow:0 4px 12px rgba(0,0,0,.08);max-height:200px;overflow-y:auto;
+            "></div>
+          </div>
+        </div>
+      </div>
+      <div class="fgroup">
+        <label class="flabel">Min months</label>
+        <input class="finput" type="number" id="f-minm" placeholder="e.g. 60"/>
+      </div>
+      <div class="fgroup">
+        <label class="flabel">Elevation (m asl)</label>
+        <div class="frow">
+          <input class="finput" type="number" id="f-elev-min" placeholder="min"/>
+          <input class="finput" type="number" id="f-elev-max" placeholder="max"/>
+        </div>
+      </div>
+      <div class="fgroup">
+        <label class="flabel">Bounding box lon</label>
+        <div class="frow">
+          <input class="finput" type="number" id="f-lon-min" placeholder="min" step="0.01"/>
+          <input class="finput" type="number" id="f-lon-max" placeholder="max" step="0.01"/>
+        </div>
+      </div>
+      <div class="fgroup">
+        <label class="flabel">Bounding box lat</label>
+        <div class="frow">
+          <input class="finput" type="number" id="f-lat-min" placeholder="min" step="0.01"/>
+          <input class="finput" type="number" id="f-lat-max" placeholder="max" step="0.01"/>
+        </div>
+      </div>
+      <div class="fgroup">
+        <button class="freset" id="draw-bbox-btn" onclick="startDrawBbox()" style="border-color:var(--b400);color:var(--b800);">&#9633; Draw box on map</button>
+        <button class="freset" id="clear-bbox-btn" onclick="clearBbox()" style="display:none;margin-top:.3rem;">&#10005; Clear box</button>
+      </div>
+      <div class="fgroup">
+        <label class="flabel">Data flags</label>
+        <label class="fchk"><input type="checkbox" id="f-gwh"/> Has head data (GWH)</label>
+        <label class="fchk"><input type="checkbox" id="f-gws"/> Has salinity data (GWS)</label>
+        <label class="fchk"><input type="checkbox" id="f-gwe"/> Has extraction data (GWE)</label>
+        <label class="fchk"><input type="checkbox" id="f-litho"/> Has bore lithology</label>
+        <label class="fchk"><input type="checkbox" id="f-hasts"/> Has time series</label>
+      </div>
+      <div class="fgroup">
+        <button class="fapply" onclick="applyFilters()">Apply filters</button>
+        <button class="freset" onclick="resetFilters()">Reset</button>
+      </div>
+    </div>
+    <div class="ssec">
+      <div class="stitle">Navigation</div>
+      <button class="sitem on" onclick="showPanel('map')">&#9632; Map</button>
+      <button class="sitem" onclick="showPanel('browse')">&#9632; Browse</button>
+      <button class="sitem" onclick="showPanel('export')">&#8659; Export</button>
+      <button class="sitem" onclick="showPanel('coverage')">&#9651; Coverage</button>
+    </div>
+  </aside>
+
+  <div class="main">
+
+    <!-- MAP PANEL -->
+    <div class="panel on" id="panel-map">
+      <div class="map-statbar">
+        <span>Showing: <strong id="map-count">—</strong> wells</span>
+        <span>Total: <strong id="map-total">—</strong></span>
+        <span id="trend-stats" style="display:none;font-size:11px;color:var(--g600);">
+          <span style="color:#E24B4A;">&#9660; Declining: <strong id="pct-declining">—</strong></span>
+          &nbsp;
+          <span style="color:#378ADD;">&#9650; Rising: <strong id="pct-rising">—</strong></span>
+          &nbsp;
+          <span style="color:#888780;">&#8212; Flat/no data: <strong id="pct-flat">—</strong></span>
+        </span>
+        <button class="ebtn" style="margin-left:.5rem;font-size:11px;padding:.2rem .55rem;" onclick="resetMapView()">&#8635; Reset map</button>
+        <label class="map-hint" style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="trend-toggle" onchange="toggleTrendMode()"/> Colour by trend direction</label>
+        <span class="map-hint" style="margin-left:.5rem;">Click a dot to load time series</span>
+      </div>
+      <div id="map-container">
+        <div id="map"></div>
+        <div class="map-legend" id="map-legend">
+          <div id="legend-default">
+            <div><span class="legend-dot" style="background:#1D9E75;"></span>&ge;240 months</div>
+            <div style="margin-top:4px;"><span class="legend-dot" style="background:#378ADD;"></span>&lt;240 months</div>
+          </div>
+          <div id="legend-trend" style="display:none;">
+            <div><span class="legend-dot" style="background:#E24B4A;"></span>Declining <span id="leg-pct-declining" style="color:#888;font-size:10px;"></span></div>
+            <div style="margin-top:4px;"><span class="legend-dot" style="background:#378ADD;"></span>Rising <span id="leg-pct-rising" style="color:#888;font-size:10px;"></span></div>
+            <div style="margin-top:4px;"><span class="legend-dot" style="background:#888780;"></span>Flat / no data <span id="leg-pct-flat" style="color:#888;font-size:10px;"></span></div>
+          </div>
+        </div>
+      </div>
+      <!-- BBOX ANALYSIS PANEL (shown after drawing a box) -->
+      <div id="bbox-panel" style="display:none;border-top:.5px solid var(--b100);background:var(--b50);padding:.75rem 1rem;flex-shrink:0;">
+        <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;">
+          <span style="font-size:12px;font-weight:500;color:var(--b800);">&#9633; Box selection: <strong id="bbox-well-count">—</strong> wells</span>
+          <span id="bbox-trend-summary" style="font-size:12px;color:var(--g600);"></span>
+          <div style="margin-left:auto;display:flex;gap:.4rem;flex-wrap:wrap;">
+            <select class="finput" id="bbox-export-var" style="font-size:11px;padding:.2rem .4rem;width:auto;">
+              <option value="gwh">Head (m)</option>
+              <option value="gws">Salinity (ppm)</option>
+              <option value="gwe">Extraction (m³/d)</option>
+            </select>
+            <button class="ebtn" style="font-size:11px;" onclick="exportBboxTS()">&#8659; Export time series</button>
+            <button class="ebtn" style="font-size:11px;" onclick="showBboxAvgChart()">&#9650; Average time series</button>
+            <button class="ebtn" style="font-size:11px;color:var(--red-800,#791F1F);border-color:var(--red-200,#F09595);" onclick="clearBbox()">&#10005; Clear</button>
+          </div>
+        </div>
+        <!-- avg chart -->
+        <div id="bbox-chart-wrap" style="display:none;margin-top:.6rem;height:160px;position:relative;">
+          <canvas id="bbox-chart" style="width:100%;height:100%;"></canvas>
+        </div>
+      </div>
+      <div id="ts-drawer">
+        <div class="ts-inner">
+          <div class="ts-header">
+            <h3 id="ts-title">—</h3>
+            <span id="ts-trend-badge" class="trend-badge" style="display:none;"></span>
+            <button class="ts-close" onclick="closeDrawer()">&#10005; Close</button>
+          </div>
+          <div class="ts-meta-row" id="ts-meta-row"></div>
+          <!-- TABS -->
+          <div style="display:flex;gap:0;border-bottom:.5px solid var(--g100);flex-shrink:0;margin-bottom:.4rem;">
+            <button class="drawer-tab on" id="tab-gwh" onclick="switchTab('gwh')">Head (m)</button>
+            <button class="drawer-tab" id="tab-gws" onclick="switchTab('gws')">Salinity (ppm)</button>
+            <button class="drawer-tab" id="tab-gwe" onclick="switchTab('gwe')">Extraction (m³/d)</button>
+            <button class="drawer-tab" id="tab-litho" onclick="switchTab('litho')">Lithology</button>
+          </div>
+          <!-- TAB PANELS -->
+          <div id="tabpanel-gwh" style="flex:1;min-height:0;position:relative;">
+            <div class="ts-loading-msg" id="ts-loading-msg">Select a well on the map.</div>
+            <canvas id="ts-chart" style="display:none;width:100%;height:100%;"></canvas>
+          </div>
+          <div id="tabpanel-gws" style="flex:1;min-height:0;position:relative;display:none;">
+            <div class="ts-loading-msg" id="gws-loading-msg">Loading salinity data...</div>
+            <canvas id="gws-chart" style="display:none;width:100%;height:100%;"></canvas>
+          </div>
+          <div id="tabpanel-gwe" style="flex:1;min-height:0;position:relative;display:none;">
+            <div class="ts-loading-msg" id="gwe-loading-msg">Loading extraction data...</div>
+            <canvas id="gwe-chart" style="display:none;width:100%;height:100%;"></canvas>
+          </div>
+          <div id="tabpanel-litho" style="flex:1;min-height:0;overflow-y:auto;display:none;padding:.25rem 0;">
+            <div class="ts-loading-msg" id="litho-loading-msg">Loading lithology profile...</div>
+            <div id="litho-bars" style="display:flex;gap:2px;align-items:flex-end;height:50px;overflow-x:auto;display:none;"></div>
+            <div id="litho-legend" style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.4rem;font-size:11px;color:var(--g600);"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BROWSE PANEL -->
+    <div class="panel" id="panel-browse">
+      <div class="statrow">
+        <div class="statcard"><div class="statval" id="stat-total">—</div><div class="statlbl">Filtered wells</div></div>
+        <div class="statcard"><div class="statval" id="stat-all">—</div><div class="statlbl">Total dataset</div></div>
+        <div class="statcard"><div class="statval" id="stat-countries">—</div><div class="statlbl">Countries</div></div>
+        <div class="statcard"><div class="statval" id="stat-page">—</div><div class="statlbl">Showing</div></div>
+      </div>
+      <div id="browse-error"></div>
+      <div class="twrap">
+        <div class="toolbar">
+          <input type="text" id="tbl-search" placeholder="Search well ID..." oninput="applyFilters()"/>
+          <button class="ebtn" onclick="exportWellsCSV()">&#8659; Wells CSV</button>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="tbl">
+            <thead><tr>
+              <th onclick="sortBy('wellID')">Well ID &#8597;</th>
+              <th onclick="sortBy('lon')">Lon &#8597;</th>
+              <th onclick="sortBy('lat')">Lat &#8597;</th>
+              <th onclick="sortBy('country_name')">Country &#8597;</th>
+              <th onclick="sortBy('state_name')">State &#8597;</th>
+              <th onclick="sortBy('glo90_elev_m_asl')">Elev (m) &#8597;</th>
+              <th onclick="sortBy('num_months')">Months &#8597;</th>
+              <th>Flags</th>
+            </tr></thead>
+            <tbody id="tbl-body"></tbody>
+          </table>
+        </div>
+        <div class="paginator" id="paginator">
+          <button class="pgbtn" id="btn-prev" onclick="changePage(-1)">&#8592;</button>
+          <span id="page-info"></span>
+          <button class="pgbtn" id="btn-next" onclick="changePage(1)">&#8594;</button>
+        </div>
+      </div>
+      <p style="font-size:11px;color:var(--g400);">Click a well ID to open it on the map with its time series.</p>
+    </div>
+
+    <!-- EXPORT PANEL -->
+    <div class="panel" id="panel-export">
+      <p class="sh">Export builder</p>
+      <p class="ss">Choose a scope, select variables, and download. All exports respect the current map filters (country, state, bounding box, flags etc.).</p>
+
+      <!-- EXPORT BUILDER CARD -->
+      <div style="background:#fff;border:.5px solid var(--g100);border-radius:var(--rl);padding:1.1rem 1.25rem;margin-bottom:1rem;">
+
+        <!-- STEP 1: SCOPE -->
+        <div style="margin-bottom:1rem;">
+          <div class="stitle" style="padding:0 0 .4rem;">Step 1 — Scope</div>
+          <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+            <label class="exp-scope-btn on" id="scope-btn-filtered" onclick="setScope('filtered')">All filtered wells <span id="scope-filtered-count"></span></label>
+            <label class="exp-scope-btn" id="scope-btn-country" onclick="setScope('country')">By country / state</label>
+            <label class="exp-scope-btn" id="scope-btn-well" onclick="setScope('well')">Single well</label>
+          </div>
+          <!-- scope sub-controls -->
+          <div id="scope-country-ctrl" style="display:none;margin-top:.5rem;">
+            <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.4rem;">
+              <select class="finput" id="exp-country" style="flex:1;font-size:12px;" onchange="onExpCountryChange()">
+                <option value="">Select country</option>
+              </select>
+            </div>
+            <div style="position:relative;">
+              <input class="finput" type="text" id="exp-state-scope" placeholder="Region / state (optional)"
+                autocomplete="off" style="width:100%;font-size:12px;"
+                oninput="onExpRegionInput()" onkeydown="onExpRegionKey(event)" onfocus="onExpRegionInput()"/>
+              <div id="exp-region-dropdown" style="
+                display:none;position:absolute;top:100%;left:0;right:0;z-index:2000;
+                background:#fff;border:.5px solid var(--g200);border-radius:var(--r);
+                box-shadow:0 4px 12px rgba(0,0,0,.08);max-height:160px;overflow-y:auto;
+              "></div>
+            </div>
+          </div>
+          <div id="scope-well-ctrl" style="display:none;margin-top:.5rem;">
+            <input class="finput" type="text" id="exp-well-id" placeholder="Enter well ID" style="max-width:200px;font-size:12px;"/>
+          </div>
+        </div>
+
+        <!-- STEP 2: VARIABLES -->
+        <div style="margin-bottom:1rem;">
+          <div class="stitle" style="padding:0 0 .4rem;">Step 2 — Variables</div>
+          <div style="display:flex;gap:.75rem;flex-wrap:wrap;">
+            <label class="fchk"><input type="checkbox" id="exp-chk-meta" checked/> Well metadata</label>
+            <label class="fchk"><input type="checkbox" id="exp-chk-gwh"/> Head (m)</label>
+            <label class="fchk"><input type="checkbox" id="exp-chk-gws"/> Salinity (ppm)</label>
+            <label class="fchk"><input type="checkbox" id="exp-chk-gwe"/> Extraction (m³/d)</label>
+            <label class="fchk"><input type="checkbox" id="exp-chk-litho"/> Bore lithology</label>
+            <label class="fchk" style="margin-left:.5rem;color:var(--b600);font-weight:500;" onclick="checkAllVars()">&#9745; All</label>
+          </div>
+        </div>
+
+        <!-- STEP 3: DOWNLOAD -->
+        <div>
+          <div class="stitle" style="padding:0 0 .4rem;">Step 3 — Download</div>
+          <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;">
+            <button class="fapply" style="width:auto;padding:.4rem 1.25rem;" onclick="runExport()">&#8659; Download CSV(s)</button>
+            <span id="exp-progress" style="font-size:12px;color:var(--g400);"></span>
+          </div>
+          <p style="font-size:11px;color:var(--g400);margin-top:.4rem;">Each selected variable downloads as a separate CSV file. Lithology downloads as one flat file with depth-interval columns.</p>
+        </div>
+      </div>
+
+      <div class="citebox">
+        <h3>Python: load exported CSVs</h3>
+        <div class="codemono">import pandas as pd
+
+# Well metadata
+wells = pd.read_csv('export_metadata.csv')
+
+# Head time series
+gwh = pd.read_csv('export_gwh.csv', parse_dates=['date'])
+gwh = gwh.dropna(subset=['gwh_m'])
+
+# Trend per well (Mann-Kendall)
+from pymannkendall import original_test
+for wid, grp in gwh.groupby('wellID'):
+    res = original_test(grp.set_index('date').sort_index()['gwh_m'])
+    print(wid, res.trend, round(res.slope * 12, 4), 'm/yr')</div>
+      </div>
+    </div>
+
+    <!-- COVERAGE PANEL -->
+    <div class="panel" id="panel-coverage">
+      <p class="sh">Data coverage &amp; limitations</p>
+      <div class="covbox">
+        <h3>Coverage summary</h3>
+        <div class="covgrid">
+          <div class="covitem">
+            <strong>Temporal coverage</strong>
+            Export covers 1979–2019 from _gwh_monthly_tb. num_months reflects actual non-null observations, not potential.
+          </div>
+          <div class="covitem">
+            <strong>Units</strong>
+            Raw DINO values in cm, divided by 100 at export. All gwh_m values are in metres relative to local datum.
+          </div>
+          <div class="covitem">
+            <strong>Data flags</strong>
+            litho, gwh, gws, gwe are boolean columns in _lookup_tb. They indicate whether that variable type is available for a well, not the values themselves.
+          </div>
+          <div class="covitem">
+            <strong>Elevation</strong>
+            glo90_elev_m_asl is from the GLO-90 DEM. orig_elev_m_asl is from the original data source. Both may be null for some wells.
+          </div>
+          <div class="covitem">
+            <strong>Coordinates</strong>
+            WGS84 (EPSG:4326). x_wgs84 stored as lon, y_wgs84 stored as lat in the exported JSON.
+          </div>
+          <div class="covitem">
+            <strong>Refreshing the dataset</strong>
+            Re-run export_to_json.py on the UU network (VPN or campus) to pull updated records from geowat.
+          </div>
+        </div>
+      </div>
+      <div class="covbox" style="background:var(--r50);border-color:var(--r200);">
+        <h3 style="color:var(--r800);">Known issues</h3>
+        <div class="covgrid">
+          <div class="covitem" style="color:var(--r800);">
+            <strong>Outlier head values</strong>
+            Some wells contain erroneous spikes. Apply a plausibility check (e.g. exclude values below -30 m or above 50 m) before trend analysis.
+          </div>
+          <div class="covitem" style="color:var(--r800);">
+            <strong>Null elevation</strong>
+            Some wells have no elevation value in either elevation column. These appear as — in the table and are excluded from elevation range filters.
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- .main -->
+</div><!-- .layout -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+// ---------------------------------------------------------------------------
+// STATE
+// ---------------------------------------------------------------------------
+let ALL_WELLS = [];
+let filtered  = [];
+let currentPage = 0;
+const PAGE_SIZE = 50;
+let sortCol = 'wellID', sortAsc = true;
+let tsChart = null;
+let map = null;
+let TREND_CACHE = {};   // wellID -> slope per month (lazy loaded)
+let trendMode = false; // whether map colours by trend
+let LITHO_CLASSES = {}; // id_litho -> {glim_name, glim_shortcut, color}
+let LITHO_ALL = {};     // wellID -> [[depth_col, litho_id], ...]
+
+// ---------------------------------------------------------------------------
+// BOOT
+// ---------------------------------------------------------------------------
+window.addEventListener('DOMContentLoaded', async () => {
+  initMap();
+  try {
+    const r = await fetch('data/wells.json');
+    if (!r.ok) throw new Error(`Cannot load data/wells.json (HTTP ${r.status}). Open via python -m http.server 8000`);
+    const data = await r.json();
+    ALL_WELLS = data.wells;
+    document.getElementById('stat-all').textContent    = ALL_WELLS.length.toLocaleString();
+    document.getElementById('map-total').textContent   = ALL_WELLS.length.toLocaleString();
+    document.getElementById('data-pill').textContent   = ALL_WELLS.length.toLocaleString() + ' wells';
+    populateCountryDropdowns();
+    loadLithoClasses();
+    applyFilters();
+    setScope('filtered');
+    buildRegionList();
+  } catch(e) {
+    document.getElementById('browse-error').innerHTML =
+      `<div class="errbox">${e.message}</div>`;
+    document.getElementById('data-pill').textContent = 'data missing';
+    document.getElementById('data-pill').style.background = '#711';
+  }
+});
+
+// ---------------------------------------------------------------------------
+// MAP
+// ---------------------------------------------------------------------------
+// FAST CANVAS MAP RENDERER
+// Draws all points directly onto a Leaflet overlay canvas — no marker objects.
+// Handles 500k+ points without lag. Click detection via spatial proximity search.
+// ---------------------------------------------------------------------------
+let dotCanvas = null;   // the custom L.Layer that owns the <canvas>
+let dotCtx    = null;
+let clickPopup = null;
+
+function initMap() {
+  map = L.map('map', { zoomSnap: 0.5 }).setView([20, 0], 2);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors', maxZoom: 18,
+  }).addTo(map);
+
+  // Custom canvas layer
+  dotCanvas = L.Layer.extend({
+    onAdd(map) {
+      const pane = map.getPane('overlayPane');
+      this._canvas = document.createElement('canvas');
+      this._canvas.style.cssText = 'position:absolute;top:0;left:0;pointer-events:none;';
+      pane.appendChild(this._canvas);
+      dotCtx = this._canvas.getContext('2d');
+      map.on('moveend zoomend resize', () => renderMap());
+      this._resize();
+    },
+    onRemove() { this._canvas.remove(); },
+    _resize() {
+      const size = map.getSize();
+      this._canvas.width  = size.x;
+      this._canvas.height = size.y;
+    },
+    getCanvas() { return this._canvas; }
+  });
+
+  new dotCanvas().addTo(map);
+  clickPopup = L.popup({ closeButton: false, className: 'dot-popup' });
+
+  // Click handler — find nearest well within 8px
+  map.on('click', e => {
+    const best = findNearestWell(e.containerPoint, 8);
+    if (!best) { map.closePopup(); return; }
+    const w = best.well;
+    const m = w.num_months || 0;
+    const region = w.region_name || w.state_name || '';
+    const trendStr = w.trend_slope != null
+      ? (w.trend_slope * 12 >= 0 ? '+' : '') + (w.trend_slope * 12).toFixed(4) + ' m/yr'
+      : '';
+    clickPopup
+      .setLatLng(map.containerPointToLatLng(best.pt))
+      .setContent(`
+        <strong style="font-family:monospace;cursor:pointer;color:#185FA5;"
+          onclick="openTimeSeries(window._clickedWell)">&#9654; ${w.wellID}</strong><br>
+        ${w.country_name || ''}${region ? ', '+region : ''}<br>
+        Months: ${m}${w.glo90_elev_m_asl != null ? ' &nbsp;|&nbsp; '+w.glo90_elev_m_asl.toFixed(1)+' m' : ''}
+        ${trendMode && trendStr ? '<br>Trend: '+trendStr : ''}
+        <br><span style="font-size:10px;color:#888;cursor:pointer;" onclick="openTimeSeries(window._clickedWell)">Click to open time series</span>
+      `)
+      .openOn(map);
+    window._clickedWell = w;
+  });
+}
+
+function markerColor(w) {
+  if (!trendMode) {
+    return w.num_months >= 240 ? '#1D9E75' : '#378ADD';
+  }
+  const s = w.trend_slope;
+  if (s == null) return '#888780';
+  if (Math.abs(s * 12) < 0.001) return '#888780';
+  return s > 0 ? '#378ADD' : '#E24B4A';
+}
+
+function renderMap() {
+  if (!dotCtx || !map) return;
+
+  // Resize canvas to current map container
+  const size = map.getSize();
+  const canvas = dotCtx.canvas;
+  canvas.width  = size.x;
+  canvas.height = size.y;
+
+  // Align canvas with map top-left
+  const topLeft = map.containerPointToLayerPoint([0, 0]);
+  L.DomUtil.setPosition(canvas, topLeft);
+
+  dotCtx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Batch draw by color to minimise fillStyle changes
+  const buckets = {};
+  const pts = [];   // store projected points for click detection
+
+  filtered.forEach(w => {
+    if (w.lon == null || w.lat == null) return;
+    const latlng = L.latLng(w.lat, w.lon);
+    // Skip if outside current bounds (small buffer)
+    if (!map.getBounds().pad(0.1).contains(latlng)) return;
+    const pt = map.latLngToContainerPoint(latlng);
+    const color = markerColor(w);
+    const r = (w.num_months || 0) >= 240 ? 4 : 2.5;
+    if (!buckets[color]) buckets[color] = [];
+    buckets[color].push({ x: pt.x, y: pt.y, r, w });
+    pts.push({ x: pt.x, y: pt.y, w });
+  });
+
+  // Store for click detection (set on map object for access in handler)
+  map._dotPts = pts;
+
+  // Draw each color bucket as one path
+  Object.entries(buckets).forEach(([color, points]) => {
+    dotCtx.fillStyle = color;
+    dotCtx.globalAlpha = 0.85;
+    points.forEach(({ x, y, r }) => {
+      dotCtx.beginPath();
+      dotCtx.arc(x, y, r, 0, Math.PI * 2);
+      dotCtx.fill();
+    });
+  });
+
+  document.getElementById('map-count').textContent = filtered.length.toLocaleString();
+  updateTrendStats();
+}
+
+function findNearestWell(containerPoint, maxPx) {
+  if (!map._dotPts) return null;
+  let best = null, bestDist = maxPx * maxPx;
+  map._dotPts.forEach(p => {
+    const dx = p.x - containerPoint.x;
+    const dy = p.y - containerPoint.y;
+    const d2 = dx*dx + dy*dy;
+    if (d2 < bestDist) { bestDist = d2; best = { pt: L.point(p.x, p.y), well: p.w }; }
+  });
+  return best;
+}
+
+// ---------------------------------------------------------------------------
+// DRAWER TABS
+// ---------------------------------------------------------------------------
+let gws_chart = null, gwe_chart = null;
+
+function switchTab(name) {
+  ['gwh','gws','gwe','litho'].forEach(t => {
+    document.getElementById('tabpanel-'+t).style.display = t === name ? 'flex' : 'none';
+    document.getElementById('tab-'+t).classList.toggle('on', t === name);
+  });
+  // gwh tabpanel needs flex-direction column
+  if (name === 'gwh') document.getElementById('tabpanel-gwh').style.flexDirection = 'column';
+}
+
+function makeChart(canvasId, labels, values, yLabel, color) {
+  const existing = Chart.getChart(canvasId);
+  if (existing) existing.destroy();
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  return new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: yLabel,
+        data: values,
+        borderColor: color,
+        borderWidth: 1.5,
+        pointRadius: 0,
+        fill: false,
+        tension: 0.2,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { maxTicksLimit: 12, font:{size:10}, color:'#888780' }, grid:{color:'#F1EFE8'} },
+        y: {
+          title: { display:true, text: yLabel, font:{size:11}, color:'#5F5E5A' },
+          ticks: { font:{size:10}, color:'#888780' },
+          grid:  { color:'#F1EFE8' }
+        }
+      }
+    }
+  });
+}
+
+async function loadSalinityChart(wellID) {
+  const loading = document.getElementById('gws-loading-msg');
+  const canvas  = document.getElementById('gws-chart');
+  loading.style.display = 'block'; canvas.style.display = 'none';
+  loading.textContent = 'Loading salinity data...';
+  try {
+    const r = await fetch(`data/salinity/${encodeURIComponent(wellID)}.json`);
+    if (!r.ok) { loading.textContent = 'No salinity data for this well.'; return; }
+    const data = await r.json();
+    if (!data.series.length) { loading.textContent = 'No salinity observations.'; return; }
+    loading.style.display = 'none'; canvas.style.display = 'block';
+    gws_chart = makeChart('gws-chart',
+      data.series.map(d => d.date),
+      data.series.map(d => d.value),
+      'Salinity (ppm)', '#BA7517'
+    );
+  } catch { loading.textContent = 'Could not load salinity data.'; }
+}
+
+async function loadExtractionChart(wellID) {
+  const loading = document.getElementById('gwe-loading-msg');
+  const canvas  = document.getElementById('gwe-chart');
+  loading.style.display = 'block'; canvas.style.display = 'none';
+  loading.textContent = 'Loading extraction data...';
+  try {
+    const r = await fetch(`data/extraction/${encodeURIComponent(wellID)}.json`);
+    if (!r.ok) { loading.textContent = 'No extraction data for this well.'; return; }
+    const data = await r.json();
+    if (!data.series.length) { loading.textContent = 'No extraction observations.'; return; }
+    loading.style.display = 'none'; canvas.style.display = 'block';
+    gwe_chart = makeChart('gwe-chart',
+      data.series.map(d => d.date),
+      data.series.map(d => d.value),
+      'Extraction (m³/d)', '#533AB7'
+    );
+  } catch { loading.textContent = 'Could not load extraction data.'; }
+}
+
+// ---------------------------------------------------------------------------
+// LITHOLOGY
+// ---------------------------------------------------------------------------
+// 20 distinct colours for lithology classes
+const LITHO_COLORS = [
+  '#378ADD','#1D9E75','#D85A30','#BA7517','#639922',
+  '#533AB7','#D4537E','#888780','#E24B4A','#0F6E56',
+  '#FAC775','#85B7EB','#5DCAA5','#F09595','#B4B2A9',
+  '#0C447C','#085041','#712B13','#3B6D11','#2C2C2A'
+];
+
+async function loadLithoClasses() {
+  try {
+    const [cr, lr] = await Promise.all([
+      fetch('data/lithology/litho_classes.json'),
+      fetch('data/lithology/lithology_all.json'),
+    ]);
+    if (cr.ok) {
+      const data = await cr.json();
+      data.classes.forEach((cls, i) => {
+        LITHO_CLASSES[cls.id_litho] = {
+          name: cls.glim_name,
+          short: cls.glim_shortcut,
+          color: LITHO_COLORS[i % LITHO_COLORS.length],
+        };
+      });
+    }
+    if (lr.ok) {
+      LITHO_ALL = await lr.json();
+      console.log(`Lithology loaded: ${Object.keys(LITHO_ALL).length} profiles`);
+    }
+  } catch(e) { console.warn('Lithology data not available:', e.message); }
+}
+
+function loadLithologyProfile(wellID) {
+  const loading = document.getElementById('litho-loading-msg');
+  const bars    = document.getElementById('litho-bars');
+  const legend  = document.getElementById('litho-legend');
+  bars.innerHTML = ''; legend.innerHTML = '';
+  loading.style.display = 'block';
+
+  // Look up from pre-loaded dict — no fetch needed
+  const profile = LITHO_ALL[wellID] || LITHO_ALL[String(wellID)];
+  if (!profile || profile.length === 0) {
+    loading.textContent = 'No lithology data for this well.';
+    return;
+  }
+
+  loading.style.display = 'none';
+  bars.style.display = 'flex';
+  const seen = {};
+
+  profile.forEach(([depth, litho_id]) => {
+    const cls = LITHO_CLASSES[litho_id] || { name: 'Unknown', short: '?', color: '#ccc' };
+    const bar = document.createElement('div');
+    bar.title = `${depth}: ${cls.name}`;
+    bar.style.cssText = `width:6px;height:100%;background:${cls.color};border-radius:2px;flex-shrink:0;cursor:default;`;
+    bars.appendChild(bar);
+    if (!seen[litho_id]) {
+      seen[litho_id] = true;
+      const item = document.createElement('span');
+      item.style.cssText = 'display:inline-flex;align-items:center;gap:3px;';
+      item.innerHTML = `<span style="width:8px;height:8px;border-radius:2px;background:${cls.color};display:inline-block;"></span>${cls.short || cls.name}`;
+      legend.appendChild(item);
+    }
+  });
+}
+
+
+// ---------------------------------------------------------------------------
+// BOUNDING BOX DRAW TOOL
+// ---------------------------------------------------------------------------
+let bboxRect = null;
+let drawingBbox = false;
+let drawStart = null;
+
+function startDrawBbox() {
+  // Switch to map panel first
+  showPanel('map');
+  const btn = document.getElementById('draw-bbox-btn');
+  if (drawingBbox) {
+    stopDrawBbox();
+    return;
+  }
+  drawingBbox = true;
+  btn.textContent = '⏹ Cancel draw';
+  btn.classList.add('active');
+  map.getContainer().style.cursor = 'crosshair';
+
+  // Remove old rect
+  if (bboxRect) { map.removeLayer(bboxRect); bboxRect = null; }
+
+  map.once('mousedown', function(e) {
+    if (!drawingBbox) return;
+    drawStart = e.latlng;
+    map.dragging.disable();
+
+    function onMouseMove(e2) {
+      if (bboxRect) map.removeLayer(bboxRect);
+      bboxRect = L.rectangle([drawStart, e2.latlng], {
+        color: '#378ADD', weight: 1.5, fillOpacity: 0.08, interactive: false,
+      }).addTo(map);
+    }
+
+    function onMouseUp(e2) {
+      map.off('mousemove', onMouseMove);
+      map.off('mouseup', onMouseUp);
+      map.dragging.enable();
+
+      const bounds = L.latLngBounds(drawStart, e2.latlng);
+      const sw = bounds.getSouthWest();
+      const ne = bounds.getNorthEast();
+
+      document.getElementById('f-lon-min').value = sw.lng.toFixed(4);
+      document.getElementById('f-lon-max').value = ne.lng.toFixed(4);
+      document.getElementById('f-lat-min').value = sw.lat.toFixed(4);
+      document.getElementById('f-lat-max').value = ne.lat.toFixed(4);
+
+      stopDrawBbox();
+      applyFilters();
+    }
+
+    map.on('mousemove', onMouseMove);
+    map.on('mouseup', onMouseUp);
+  });
+}
+
+function stopDrawBbox() {
+  drawingBbox = false;
+  drawStart = null;
+  map.getContainer().style.cursor = '';
+  const btn = document.getElementById('draw-bbox-btn');
+  btn.textContent = '□ Draw box on map';
+  btn.classList.remove('active');
+  document.getElementById('clear-bbox-btn').style.display =
+    bboxRect ? 'block' : 'none';
+  if (bboxRect) updateBboxPanel();
+}
+
+function clearBbox() {
+  if (bboxRect) { map.removeLayer(bboxRect); bboxRect = null; }
+  ['f-lon-min','f-lon-max','f-lat-min','f-lat-max'].forEach(id =>
+    document.getElementById(id).value = '');
+  document.getElementById('clear-bbox-btn').style.display = 'none';
+  document.getElementById('bbox-panel').style.display = 'none';
+  document.getElementById('bbox-chart-wrap').style.display = 'none';
+  if (bboxAvgChart) { bboxAvgChart.destroy(); bboxAvgChart = null; }
+  applyFilters();
+}
+
+
+// ---------------------------------------------------------------------------
+// BBOX ANALYSIS
+// ---------------------------------------------------------------------------
+let bboxAvgChart = null;
+
+function getBboxWells() {
+  // Use currently filtered wells (already respects bbox via f-lon/lat inputs)
+  return filtered.filter(w => w.lon != null && w.lat != null);
+}
+
+function updateBboxPanel() {
+  const wells = getBboxWells();
+  document.getElementById('bbox-panel').style.display = 'block';
+  document.getElementById('bbox-well-count').textContent = wells.length.toLocaleString();
+
+  // Trend summary from pre-computed slopes
+  let dec = 0, ris = 0, flat = 0;
+  wells.forEach(w => {
+    const s = w.trend_slope;
+    if (s == null || Math.abs(s * 12) < 0.001) flat++;
+    else if (s > 0) ris++;
+    else dec++;
+  });
+  const n = wells.length || 1;
+  const slopes = wells.map(w => w.trend_slope).filter(s => s != null && Math.abs(s*12) >= 0.001);
+  const meanSlope = slopes.length
+    ? (slopes.reduce((a, b) => a + b, 0) / slopes.length * 12).toFixed(4)
+    : null;
+
+  document.getElementById('bbox-trend-summary').innerHTML = wells.length
+    ? `<span style="color:#E24B4A;">&#9660; ${((dec/n)*100).toFixed(1)}%</span> &nbsp;` +
+      `<span style="color:#378ADD;">&#9650; ${((ris/n)*100).toFixed(1)}%</span> &nbsp;` +
+      `<span style="color:#888;">&#8212; ${((flat/n)*100).toFixed(1)}%</span>` +
+      (meanSlope ? ` &nbsp;|&nbsp; mean trend: <strong>${meanSlope} m/yr</strong>` : '')
+    : '';
+}
+
+async function showBboxAvgChart() {
+  const wells = getBboxWells();
+  if (!wells.length) { alert('No wells in box.'); return; }
+
+  const varId = document.getElementById('bbox-export-var').value;
+  const cfg = { gwh: {dir:'timeseries',key:'gwh_m',label:'Avg GWH (m)'},
+                gws: {dir:'salinity',  key:'value', label:'Avg Salinity (ppm)'},
+                gwe: {dir:'extraction',key:'value', label:'Avg Extraction (m³/d)'} }[varId];
+
+  const wrap = document.getElementById('bbox-chart-wrap');
+  wrap.style.display = 'block';
+  if (bboxAvgChart) { bboxAvgChart.destroy(); bboxAvgChart = null; }
+
+  // Fetch a sample (up to 200 wells to avoid freezing) and average their series
+  const sample = wells.slice(0, 200);
+  const dateMaps = {};  // date -> [values]
+  let fetched = 0;
+
+  await Promise.all(sample.map(async w => {
+    try {
+      const r = await fetch(`data/${cfg.dir}/${encodeURIComponent(w.wellID)}.json`);
+      if (!r.ok) return;
+      const data = await r.json();
+      data.series.forEach(d => {
+        if (d[cfg.key] == null) return;
+        if (!dateMaps[d.date]) dateMaps[d.date] = [];
+        dateMaps[d.date].push(d[cfg.key]);
+      });
+      fetched++;
+    } catch { /* skip */ }
+  }));
+
+  const dates = Object.keys(dateMaps).sort();
+  const avgs  = dates.map(d => {
+    const vals = dateMaps[d];
+    return +(vals.reduce((a,b) => a+b, 0) / vals.length).toFixed(4);
+  });
+
+  // Trend of the average series
+  const trend = calcTrend(avgs);
+  const trendLine = dates.map((_, i) => +(trend.intercept + trend.slope * i).toFixed(4));
+  const slopeYr = (trend.slope * 12).toFixed(4);
+
+  const ctx = document.getElementById('bbox-chart').getContext('2d');
+  bboxAvgChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: dates,
+      datasets: [
+        { label: cfg.label + ` (n=${fetched})`, data: avgs,
+          borderColor: '#378ADD', borderWidth: 1.5, pointRadius: 0, fill: false, tension: 0.2, order: 2 },
+        { label: `Trend ${slopeYr >= 0 ? '+' : ''}${slopeYr} m/yr`,
+          data: trendLine, borderColor: '#E24B4A', borderWidth: 1.5,
+          borderDash: [5,3], pointRadius: 0, fill: false, order: 1 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: true, position: 'top', labels: { font:{size:10}, boxWidth:16, padding:8 } } },
+      scales: {
+        x: { ticks: { maxTicksLimit: 10, font:{size:9}, color:'#888780' }, grid:{color:'#F1EFE8'} },
+        y: { title:{display:true,text:cfg.label,font:{size:10},color:'#5F5E5A'},
+             ticks:{font:{size:9},color:'#888780'}, grid:{color:'#F1EFE8'} }
+      }
+    }
+  });
+}
+
+async function exportBboxTS() {
+  const wells = getBboxWells();
+  if (!wells.length) { alert('No wells in box.'); return; }
+  const varId = document.getElementById('bbox-export-var').value;
+
+  // Reuse the same export pipeline as the main export builder
+  const prog = { textContent: '' };  // dummy progress element
+  const suffix = '_bbox';
+  await exportTSVar(wells, varId, suffix, prog);
+}
+
+// Toggle trend mode: trend_slope is pre-computed in wells.json, instant re-colour
+
+function updateTrendStats() {
+  const statsEl = document.getElementById('trend-stats');
+  if (!trendMode) {
+    statsEl.style.display = 'none';
+    return;
+  }
+  let declining = 0, rising = 0, flat = 0;
+  filtered.forEach(w => {
+    const s = w.trend_slope;
+    if (s == null || Math.abs(s * 12) < 0.001) flat++;
+    else if (s > 0) rising++;
+    else declining++;
+  });
+  const total = filtered.length || 1;
+  const pctD = ((declining / total) * 100).toFixed(1) + '%';
+  const pctR = ((rising   / total) * 100).toFixed(1) + '%';
+  const pctF = ((flat     / total) * 100).toFixed(1) + '%';
+
+  document.getElementById('pct-declining').textContent = `${declining.toLocaleString()} (${pctD})`;
+  document.getElementById('pct-rising').textContent    = `${rising.toLocaleString()} (${pctR})`;
+  document.getElementById('pct-flat').textContent      = `${flat.toLocaleString()} (${pctF})`;
+  document.getElementById('leg-pct-declining').textContent = pctD;
+  document.getElementById('leg-pct-rising').textContent    = pctR;
+  document.getElementById('leg-pct-flat').textContent      = pctF;
+
+  statsEl.style.display = 'inline';
+}
+
+function toggleTrendMode() {
+  trendMode = document.getElementById('trend-toggle').checked;
+  document.getElementById('legend-default').style.display = trendMode ? 'none' : 'block';
+  document.getElementById('legend-trend').style.display   = trendMode ? 'block' : 'none';
+  renderMap();
+  updateTrendStats();
+}
+
+// ---------------------------------------------------------------------------
+// TIME SERIES + TREND
+// ---------------------------------------------------------------------------
+async function openTimeSeries(well) {
+  const drawer = document.getElementById('ts-drawer');
+  drawer.classList.add('open');
+  document.getElementById('ts-title').textContent = `Well ${well.wellID}`;
+  document.getElementById('ts-trend-badge').style.display = 'none';
+  switchTab('gwh');
+  loadSalinityChart(well.wellID);
+  loadExtractionChart(well.wellID);
+  loadLithologyProfile(well.wellID);
+
+  document.getElementById('ts-meta-row').innerHTML = [
+    {l:'Country', v: well.country_name || '—'},
+    {l:'Region',  v: well.region_name || well.state_name || '—'},
+    {l:'Lon',     v: well.lon  != null ? well.lon.toFixed(4)  : '—'},
+    {l:'Lat',     v: well.lat  != null ? well.lat.toFixed(4)  : '—'},
+    {l:'Elev',    v: well.glo90_elev_m_asl != null ? well.glo90_elev_m_asl.toFixed(1)+' m' : '—'},
+    {l:'Months',   v: well.num_months ?? '—'},
+    {l:'Mean sal.', v: well.gws_mean_ppm != null ? well.gws_mean_ppm.toFixed(1)+' ppm' : '—'},
+    {l:'Mean ext.', v: well.gwe_mean_m3d != null ? well.gwe_mean_m3d.toFixed(2)+' m³/d' : '—'},
+  ].map(i => `<div class="ts-meta-item"><strong>${i.l}</strong>${i.v}</div>`).join('');
+
+  document.getElementById('ts-loading-msg').textContent = 'Loading...';
+  document.getElementById('ts-loading-msg').style.display = 'block';
+  document.getElementById('ts-chart').style.display = 'none';
+  setTimeout(() => map.invalidateSize(), 260);
+
+  try {
+    const r = await fetch(`data/timeseries/${encodeURIComponent(well.wellID)}.json`);
+    if (!r.ok) throw new Error(`No time series file for well ${well.wellID}`);
+    const data = await r.json();
+
+    const labels = data.series.map(d => d.date);
+    const values = data.series.map(d => d.gwh_m);
+
+    // Linear trend (least squares)
+    const trend = calcTrend(values);
+    const trendLine = labels.map((_, i) => +(trend.intercept + trend.slope * i).toFixed(4));
+    showTrendBadge(trend.slope, labels.length);
+
+    if (tsChart) tsChart.destroy();
+    const ctx = document.getElementById('ts-chart').getContext('2d');
+    tsChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'GWH (m)',
+            data: values,
+            borderColor: '#378ADD',
+            borderWidth: 1.5,
+            pointRadius: 0,
+            fill: false,
+            tension: 0.2,
+            order: 2,
+          },
+          {
+            label: 'Trend',
+            data: trendLine,
+            borderColor: '#D85A30',
+            borderWidth: 1.5,
+            borderDash: [5, 3],
+            pointRadius: 0,
+            fill: false,
+            tension: 0,
+            order: 1,
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: true, position: 'top',
+            labels: { font: { size: 11 }, boxWidth: 20, padding: 10 }
+          },
+          tooltip: {
+            callbacks: {
+              title: ctx => ctx[0].label,
+              label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y?.toFixed(3)} m`
+            }
+          }
+        },
+        scales: {
+          x: { ticks: { maxTicksLimit: 12, font:{size:10}, color:'#888780' }, grid:{color:'#F1EFE8'} },
+          y: {
+            title: { display:true, text:'GWH (m)', font:{size:11}, color:'#5F5E5A' },
+            ticks: { font:{size:10}, color:'#888780' },
+            grid:  { color:'#F1EFE8' }
+          }
+        }
+      }
+    });
+
+    document.getElementById('ts-loading-msg').style.display = 'none';
+    document.getElementById('ts-chart').style.display = 'block';
+
+  } catch(e) {
+    document.getElementById('ts-loading-msg').textContent = e.message;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// TREND CALCULATION (least squares linear regression)
+// ---------------------------------------------------------------------------
+function calcTrend(values) {
+  const n = values.length;
+  if (n < 2) return { slope: 0, intercept: 0 };
+  let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+  values.forEach((y, x) => { sumX += x; sumY += y; sumXY += x*y; sumX2 += x*x; });
+  const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+  const intercept = (sumY - slope * sumX) / n;
+  return { slope, intercept };
+}
+
+function showTrendBadge(slopePerMonth, n) {
+  const badge = document.getElementById('ts-trend-badge');
+  const slopePerYear = slopePerMonth * 12;
+  const dir = Math.abs(slopePerYear) < 0.001 ? 'flat'
+            : slopePerYear > 0 ? 'rising' : 'declining';
+  badge.textContent = `Trend: ${slopePerYear >= 0 ? '+' : ''}${slopePerYear.toFixed(4)} m/yr (n=${n})`;
+  badge.className = 'trend-badge ' + (dir === 'rising' ? 'trend-up' : dir === 'declining' ? 'trend-dn' : 'trend-flat');
+  badge.style.display = 'inline-block';
+}
+
+function closeDrawer() {
+  document.getElementById('ts-drawer').classList.remove('open');
+  setTimeout(() => map.invalidateSize(), 260);
+}
+
+// ---------------------------------------------------------------------------
+// FILTERS  --  fixed: boolean flags compared correctly
+// ---------------------------------------------------------------------------
+// country -> sorted list of states (built once at boot)
+let STATES_BY_COUNTRY = {};
+
+function populateCountryDropdowns() {
+  const countries = [...new Set(ALL_WELLS.map(w => w.country_name).filter(Boolean))].sort();
+
+  // Build state index
+  STATES_BY_COUNTRY = {};
+  ALL_WELLS.forEach(w => {
+    const region = w.region_name || w.state_name;
+    if (!w.country_name || !region) return;
+    if (!STATES_BY_COUNTRY[w.country_name]) STATES_BY_COUNTRY[w.country_name] = new Set();
+    STATES_BY_COUNTRY[w.country_name].add(region);
+  });
+
+  ['f-country', 'exp-country'].forEach(id => {
+    const sel = document.getElementById(id);
+    countries.forEach(c => {
+      const o = document.createElement('option');
+      o.value = c; o.textContent = c; sel.appendChild(o);
+    });
+  });
+}
+
+
+// ---------------------------------------------------------------------------
+// REGION AUTOCOMPLETE
+// ---------------------------------------------------------------------------
+let ALL_REGIONS = [];   // sorted list of all unique region names across all wells
+
+function buildRegionList() {
+  const set = new Set();
+  ALL_WELLS.forEach(w => {
+    const r = w.region_name || w.state_name;
+    if (r && r.trim()) set.add(r.trim());
+  });
+  ALL_REGIONS = [...set].sort((a, b) => a.localeCompare(b));
+}
+
+function onRegionInput() {
+  const q = (document.getElementById('f-state').value || '').toLowerCase().trim();
+  applyFilters();
+
+  const dd = document.getElementById('region-dropdown');
+  if (!q) { dd.style.display = 'none'; return; }
+
+  const matches = ALL_REGIONS.filter(r => r.toLowerCase().includes(q)).slice(0, 15);
+  if (!matches.length) { dd.style.display = 'none'; return; }
+
+  dd.innerHTML = matches.map((r, i) =>
+    `<div class="region-item" data-idx="${i}" onmousedown="selectRegion('${r.replace(/'/g,"\'")}')">${
+      r.replace(new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')', 'gi'),
+        '<strong>$1</strong>')
+    }</div>`
+  ).join('');
+  dd.style.display = 'block';
+}
+
+function selectRegion(name) {
+  document.getElementById('f-state').value = name;
+  document.getElementById('region-dropdown').style.display = 'none';
+  applyFilters();
+}
+
+function onRegionKey(e) {
+  const dd = document.getElementById('region-dropdown');
+  const items = dd.querySelectorAll('.region-item');
+  const active = dd.querySelector('.region-item.hover');
+  if (e.key === 'Escape') {
+    dd.style.display = 'none';
+    return;
+  }
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    let idx = -1;
+    items.forEach((el, i) => { if (el.classList.contains('hover')) idx = i; });
+    if (active) active.classList.remove('hover');
+    idx = e.key === 'ArrowDown' ? Math.min(idx + 1, items.length - 1) : Math.max(idx - 1, 0);
+    if (items[idx]) {
+      items[idx].classList.add('hover');
+      items[idx].scrollIntoView({ block: 'nearest' });
+    }
+    return;
+  }
+  if (e.key === 'Enter') {
+    const hovered = dd.querySelector('.region-item.hover');
+    if (hovered) {
+      hovered.onmousedown();
+    } else {
+      dd.style.display = 'none';
+      applyFilters();
+    }
+  }
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', e => {
+  if (!e.target.closest('#f-state') && !e.target.closest('#region-dropdown')) {
+    const dd = document.getElementById('region-dropdown');
+    if (dd) dd.style.display = 'none';
+  }
+  if (!e.target.closest('#exp-state-scope') && !e.target.closest('#exp-region-dropdown')) {
+    const dd = document.getElementById('exp-region-dropdown');
+    if (dd) dd.style.display = 'none';
+  }
+});
+
+function onExpCountryChange() {
+  // Clear region input when country changes
+  document.getElementById('exp-state-scope').value = '';
+  document.getElementById('exp-region-dropdown').style.display = 'none';
+}
+
+function onExpRegionInput() {
+  const country = document.getElementById('exp-country').value;
+  const q = (document.getElementById('exp-state-scope').value || '').toLowerCase().trim();
+  const dd = document.getElementById('exp-region-dropdown');
+
+  // Build candidate list: if country selected, restrict to that country's regions
+  let candidates = ALL_REGIONS;
+  if (country && STATES_BY_COUNTRY[country]) {
+    candidates = [...STATES_BY_COUNTRY[country]].filter(s => s && s.trim()).sort();
+  }
+
+  if (!q) {
+    // Show all candidates for selected country (up to 15), or hide if no country
+    if (country && candidates.length) {
+      renderExpDropdown(candidates.slice(0, 15), q, dd);
+    } else {
+      dd.style.display = 'none';
+    }
+    return;
+  }
+
+  const matches = candidates.filter(r => r.toLowerCase().includes(q)).slice(0, 15);
+  if (!matches.length) { dd.style.display = 'none'; return; }
+  renderExpDropdown(matches, q, dd);
+}
+
+function renderExpDropdown(matches, q, dd) {
+  dd.innerHTML = matches.map(r =>
+    `<div class="region-item" onmousedown="selectExpRegion('${r.replace(/'/g,"\'")}')">${
+      q ? r.replace(new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')', 'gi'),
+        '<strong>$1</strong>') : r
+    }</div>`
+  ).join('');
+  dd.style.display = 'block';
+}
+
+function selectExpRegion(name) {
+  document.getElementById('exp-state-scope').value = name;
+  document.getElementById('exp-region-dropdown').style.display = 'none';
+}
+
+function onExpRegionKey(e) {
+  const dd = document.getElementById('exp-region-dropdown');
+  const items = dd.querySelectorAll('.region-item');
+  const active = dd.querySelector('.region-item.hover');
+  if (e.key === 'Escape') { dd.style.display = 'none'; return; }
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    let idx = -1;
+    items.forEach((el, i) => { if (el.classList.contains('hover')) idx = i; });
+    if (active) active.classList.remove('hover');
+    idx = e.key === 'ArrowDown' ? Math.min(idx+1, items.length-1) : Math.max(idx-1, 0);
+    if (items[idx]) { items[idx].classList.add('hover'); items[idx].scrollIntoView({block:'nearest'}); }
+    return;
+  }
+  if (e.key === 'Enter') {
+    const hovered = dd.querySelector('.region-item.hover');
+    if (hovered) hovered.onmousedown();
+    else dd.style.display = 'none';
+  }
+}
+
+function onCountryChange() {
+  // Clear state text filter when country changes
+  document.getElementById('f-state').value = '';
+  applyFilters();
+}
+
+function applyFilters() {
+  const q       = (document.getElementById('tbl-search').value || '').toLowerCase();
+  const country = document.getElementById('f-country').value;
+  const state   = (document.getElementById('f-state').value || '').toLowerCase().trim();
+  const minM    = parseInt(document.getElementById('f-minm').value)    || 0;
+  const elevMin = parseFloat(document.getElementById('f-elev-min').value);
+  const elevMax = parseFloat(document.getElementById('f-elev-max').value);
+  const lonMin  = parseFloat(document.getElementById('f-lon-min').value);
+  const lonMax  = parseFloat(document.getElementById('f-lon-max').value);
+  const latMin  = parseFloat(document.getElementById('f-lat-min').value);
+  const latMax  = parseFloat(document.getElementById('f-lat-max').value);
+  // Boolean flag filters: the JSON value is true/false (not a string)
+  const fGwh    = document.getElementById('f-gwh').checked;
+  const fGws    = document.getElementById('f-gws').checked;
+  const fGwe    = document.getElementById('f-gwe').checked;
+  const fLitho  = document.getElementById('f-litho').checked;
+  const fHasTs  = document.getElementById('f-hasts').checked;
+
+  filtered = ALL_WELLS.filter(w => {
+    if (q && !String(w.wellID).toLowerCase().includes(q)) return false;
+    if (country && w.country_name !== country) return false;
+    if (state   && !(w.region_name || w.state_name || '').toLowerCase().includes(state)) return false;
+    if (minM && (w.num_months || 0) < minM) return false;
+    if (!isNaN(elevMin) && (w.glo90_elev_m_asl == null || w.glo90_elev_m_asl < elevMin)) return false;
+    if (!isNaN(elevMax) && (w.glo90_elev_m_asl == null || w.glo90_elev_m_asl > elevMax)) return false;
+    if (!isNaN(lonMin) && (w.lon == null || w.lon < lonMin)) return false;
+    if (!isNaN(lonMax) && (w.lon == null || w.lon > lonMax)) return false;
+    if (!isNaN(latMin) && (w.lat == null || w.lat < latMin)) return false;
+    if (!isNaN(latMax) && (w.lat == null || w.lat > latMax)) return false;
+    // Boolean: w.gwh is true or false (not string), so === true is correct
+    if (fGwh  && w.gwh   !== true) return false;
+    if (fGws  && w.gws   !== true) return false;
+    if (fGwe  && w.gwe   !== true) return false;
+    if (fLitho && w.litho !== true) return false;
+    if (fHasTs && (w.num_months == null || w.num_months === 0)) return false;
+    return true;
+  });
+
+  currentPage = 0;
+  renderMap();
+  sortAndRender();
+  updateScopeCount();
+  if (bboxRect) updateBboxPanel();
+}
+
+// ---------------------------------------------------------------------------
+// TABLE
+// ---------------------------------------------------------------------------
+function sortBy(col) {
+  if (sortCol === col) sortAsc = !sortAsc;
+  else { sortCol = col; sortAsc = true; }
+  sortAndRender();
+}
+
+function sortAndRender() {
+  filtered.sort((a, b) => {
+    let av = a[sortCol], bv = b[sortCol];
+    if (av == null) return 1; if (bv == null) return -1;
+    if (typeof av === 'string') return sortAsc ? av.localeCompare(bv) : bv.localeCompare(av);
+    return sortAsc ? av - bv : bv - av;
+  });
+  renderTable();
+}
+
+function renderTable() {
+  const total = filtered.length;
+  const start = currentPage * PAGE_SIZE;
+  const end   = Math.min(start + PAGE_SIZE, total);
+  const page  = filtered.slice(start, end);
+
+  document.getElementById('stat-total').textContent     = total.toLocaleString();
+  document.getElementById('stat-countries').textContent = new Set(filtered.map(w => w.country_name).filter(Boolean)).size;
+  document.getElementById('stat-page').textContent      = `${start+1}–${end} / ${total}`;
+  document.getElementById('page-info').textContent      = `Page ${currentPage+1} of ${Math.max(1,Math.ceil(total/PAGE_SIZE))}`;
+  document.getElementById('btn-prev').disabled = currentPage === 0;
+  document.getElementById('btn-next').disabled = end >= total;
+
+  document.getElementById('tbl-body').innerHTML = page.map(w => {
+    const mBadge = w.num_months >= 240
+      ? `<span class="badge bg">${w.num_months}</span>`
+      : `<span class="badge ba">${w.num_months}</span>`;
+    const flags = [
+      w.gwh   === true ? '<span class="badge bt" title="Groundwater head">GWH</span>'   : '',
+      w.gws   === true ? '<span class="badge bt" title="Groundwater salinity">GWS</span>'   : '',
+      w.gwe   === true ? '<span class="badge bt" title="Groundwater extraction">GWE</span>'   : '',
+      w.litho === true ? '<span class="badge bt" title="Bore lithology">LITHO</span>' : '',
+    ].filter(Boolean).join(' ');
+    const wJson = JSON.stringify(w).replace(/"/g,'&quot;');
+    return `<tr>
+      <td class="wellid" onclick='showPanel("map");openTimeSeries(${wJson})'>${w.wellID}</td>
+      <td>${w.lon  != null ? w.lon.toFixed(4)  : '—'}</td>
+      <td>${w.lat  != null ? w.lat.toFixed(4)  : '—'}</td>
+      <td>${w.country_name || '—'}</td>
+      <td>${w.region_name || w.state_name || '—'}</td>
+      <td>${w.glo90_elev_m_asl != null ? w.glo90_elev_m_asl.toFixed(1) : '—'}</td>
+      <td>${mBadge}</td>
+      <td>${flags}</td>
+    </tr>`;
+  }).join('');
+}
+
+function changePage(dir) {
+  currentPage = Math.max(0, Math.min(Math.ceil(filtered.length/PAGE_SIZE)-1, currentPage+dir));
+  renderTable();
+}
+
+// ---------------------------------------------------------------------------
+// EXPORT HELPERS
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// EXPORT BUILDER
+// ---------------------------------------------------------------------------
+const VAR_CONFIGS = {
+  gwh:   { dir: 'timeseries', key: 'gwh_m',  col: 'gwh_m',   label: 'Head (m)'          },
+  gws:   { dir: 'salinity',   key: 'value',   col: 'sal_ppm', label: 'Salinity (ppm)'    },
+  gwe:   { dir: 'extraction', key: 'value',   col: 'ext_m3d', label: 'Extraction (m3d)'  },
+};
+
+let expScope = 'filtered'; // 'filtered' | 'country' | 'well'
+
+function setScope(scope) {
+  expScope = scope;
+  ['filtered','country','well'].forEach(s => {
+    document.getElementById('scope-btn-'+s).classList.toggle('on', s === scope);
+  });
+  document.getElementById('scope-country-ctrl').style.display = scope === 'country' ? 'block' : 'none';
+  document.getElementById('scope-well-ctrl').style.display    = scope === 'well'    ? 'block' : 'none';
+  updateScopeCount();
+}
+
+function updateScopeCount() {
+  document.getElementById('scope-filtered-count').textContent =
+    filtered.length ? `(${filtered.length.toLocaleString()})` : '';
+}
+
+function checkAllVars() {
+  ['meta','gwh','gws','gwe','litho'].forEach(v =>
+    document.getElementById('exp-chk-'+v).checked = true);
+}
+
+function downloadCSV(content, filename) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], {type:'text/csv'}));
+  a.download = filename;
+  a.click();
+}
+
+// Resolve the well list based on current scope selection
+function getScopeWells() {
+  if (expScope === 'well') {
+    const id = document.getElementById('exp-well-id').value.trim();
+    if (!id) { alert('Enter a well ID.'); return null; }
+    const w = ALL_WELLS.find(w => String(w.wellID) === id);
+    if (!w) { alert(`Well ${id} not found.`); return null; }
+    return [w];
+  }
+  if (expScope === 'country') {
+    const country = document.getElementById('exp-country').value;
+    const state = (document.getElementById('exp-state-scope').value || '').toLowerCase().trim();
+    if (!country) { alert('Select a country.'); return null; }
+    return ALL_WELLS.filter(w =>
+      w.country_name === country &&
+      (!state || (w.region_name || w.state_name || '').toLowerCase().includes(state))
+    );
+  }
+  return filtered; // 'filtered'
+}
+
+// Export metadata CSV (always from wells array, no fetching)
+function exportMetaCSV(wells, suffix) {
+  const header = 'wellID,lon,lat,country,region,litho,gwh,gws,gwe,orig_elev_m_asl,glo90_elev_m_asl,num_months,trend_slope_m_month,gws_mean_ppm,gwe_mean_m3d\n';
+  const rows = wells.map(w =>
+    [w.wellID, w.lon, w.lat, w.country_name||'', (w.region_name||w.state_name)||'',
+     w.litho, w.gwh, w.gws, w.gwe,
+     w.orig_elev_m_asl??'', w.glo90_elev_m_asl??'',
+     w.num_months, w.trend_slope??'', w.gws_mean_ppm??'', w.gwe_mean_m3d??''].join(',')
+  ).join('\n');
+  downloadCSV(header + rows, `export_metadata${suffix}.csv`);
+}
+
+// Export time series for a variable across a list of wells
+async function exportTSVar(wells, varId, suffix, progressEl) {
+  const cfg = VAR_CONFIGS[varId];
+  let csv = `wellID,lon,lat,country,state,date,${cfg.col}\n`;
+  for (let i = 0; i < wells.length; i++) {
+    if (i % 25 === 0) progressEl.textContent = `${cfg.label}: ${i+1}/${wells.length}...`;
+    try {
+      const r = await fetch(`data/${cfg.dir}/${encodeURIComponent(wells[i].wellID)}.json`);
+      if (!r.ok) continue;
+      const data = await r.json();
+      const w = wells[i];
+      data.series
+        .filter(d => d[cfg.key] != null)
+        .forEach(d => {
+          csv += `${w.wellID},${w.lon},${w.lat},${w.country_name||''},${(w.region_name||w.state_name)||''},${d.date},${d[cfg.key]}\n`;
+        });
+    } catch { continue; }
+  }
+  downloadCSV(csv, `export_${varId}${suffix}.csv`);
+}
+
+// Export bore lithology for a list of wells
+function exportLithoVar(wells, suffix, progressEl) {
+  // LITHO_ALL is pre-loaded at boot — no fetching needed
+  const depthCols = ["0m_5m","5m_10m","10m_15m","15m_20m","20m_25m","25m_30m","30m_35m",
+    "35m_40m","40m_45m","45m_50m","50m_55m","55m_60m","60m_65m","65m_70m","70m_75m",
+    "75m_80m","80m_85m","85m_90m","90m_95m","95m_100m","100m_110m","110m_120m",
+    "120m_130m","130m_140m","140m_150m","150m_160m","160m_170m","170m_180m",
+    "180m_190m","190m_200m","200m_225m","225m_250m","250m_275m","275m_300m"];
+  let csv = 'wellID,country,region,' + depthCols.join(',') + '\n';
+  wells.forEach((w, i) => {
+    if (i % 5000 === 0) progressEl.textContent = `Lithology: ${i+1}/${wells.length}...`;
+    const profile = LITHO_ALL[w.wellID] || LITHO_ALL[String(w.wellID)];
+    if (!profile) return;
+    const dmap = {};
+    profile.forEach(([d, id]) => dmap[d] = id);
+    const row = [w.wellID, w.country_name||'', (w.region_name||w.state_name)||'',
+      ...depthCols.map(d => dmap[d] != null ? dmap[d] : '')].join(',');
+    csv += row + '\n';
+  });
+  progressEl.textContent = 'Lithology done.';
+  downloadCSV(csv, `export_lithology${suffix}.csv`);
+}
+
+// Master export runner
+async function runExport() {
+  const wells = getScopeWells();
+  if (!wells) return;
+  if (!wells.length) { alert('No wells match the current scope.'); return; }
+
+  const doMeta  = document.getElementById('exp-chk-meta').checked;
+  const doGwh   = document.getElementById('exp-chk-gwh').checked;
+  const doGws   = document.getElementById('exp-chk-gws').checked;
+  const doGwe   = document.getElementById('exp-chk-gwe').checked;
+  const doLitho = document.getElementById('exp-chk-litho').checked;
+
+  if (!doMeta && !doGwh && !doGws && !doGwe && !doLitho) {
+    alert('Select at least one variable.'); return;
+  }
+  if (wells.length > 500 && (doGwh || doGws || doGwe || doLitho)) {
+    if (!confirm(`This will fetch files for ${wells.length} wells. Continue?`)) return;
+  }
+
+  const prog = document.getElementById('exp-progress');
+  // Build filename suffix from scope
+  let suffix = '';
+  if (expScope === 'country') {
+    const c = document.getElementById('exp-country').value;
+    const s = document.getElementById('exp-state-scope').value;
+    suffix = '_' + (s || c).replace(/\s+/g,'_');
+  } else if (expScope === 'well') {
+    suffix = '_' + document.getElementById('exp-well-id').value.trim();
+  } else {
+    suffix = '_filtered';
+  }
+
+  if (doMeta)  exportMetaCSV(wells, suffix);
+  if (doGwh)   await exportTSVar(wells, 'gwh', suffix, prog);
+  if (doGws)   await exportTSVar(wells, 'gws', suffix, prog);
+  if (doGwe)   await exportTSVar(wells, 'gwe', suffix, prog);
+  if (doLitho) exportLithoVar(wells, suffix, prog);
+
+  prog.textContent = `Done. ${wells.length} wells exported.`;
+}
+
+// Keep exportWellsCSV for backward compat (browse panel button)
+function exportWellsCSV() {
+  exportMetaCSV(filtered, '_filtered');
+}
+
+// ---------------------------------------------------------------------------
+// QUICK FILTERS
+// ---------------------------------------------------------------------------
+function quickFilter(type) {
+  resetFilters(false);
+  if (type==='dense') document.getElementById('f-minm').value = 300;
+  if (type==='gwh')   document.getElementById('f-gwh').checked = true;
+  if (type==='litho') document.getElementById('f-litho').checked = true;
+  if (type==='hasts') document.getElementById('f-hasts').checked = true;
+  applyFilters();
+}
+
+function resetFilters(reload=true) {
+  ['f-minm','f-elev-min','f-elev-max','f-lon-min','f-lon-max','f-lat-min','f-lat-max']
+    .forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-country').value = '';
+  document.getElementById('f-state').value = '';
+  if (bboxRect) { map.removeLayer(bboxRect); bboxRect = null; }
+  document.getElementById('clear-bbox-btn').style.display = 'none';
+  document.getElementById('tbl-search').value = '';
+  ['f-gwh','f-gws','f-gwe','f-litho','f-hasts'].forEach(id => document.getElementById(id).checked = false);
+  if (reload) applyFilters();
+}
+
+// ---------------------------------------------------------------------------
+// PANEL SWITCHER
+// ---------------------------------------------------------------------------
+function resetMapView() {
+  map.setView([20, 0], 2);
+  renderMap();
+}
+
+function showPanel(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('on'));
+  document.querySelectorAll('.navbtn,.sitem').forEach(b => b.classList.remove('on'));
+  document.getElementById('panel-'+name).classList.add('on');
+  if (name === 'map') setTimeout(() => map.invalidateSize(), 50);
+}
+</script>
+</body>
+</html>
