@@ -113,7 +113,7 @@ And open `http://localhost:8000/portal.html` in your browser.
 ## Related publications
 
 - Otoo et al. (2025). Hydrology and Earth System Sciences. https://doi.org/...
-- PhD project: Global-scale groundwater-dependent wetlands (wetGDEs), Utrecht University / IHE-Delft
+- PhD project: Global-scale groundwater-dependent wetlands (wetGDEs), Utrecht University
 
 ---
 
@@ -128,5 +128,5 @@ GitHub: https://github.com/otoo0001/Hygs-portal
 
 ## Contact
 
-Nicole (Nicky) Otoo
-PhD Researcher, Utrecht University / IHE-Delft
+Nicole Otoo
+PhD Researcher, Utrecht University
